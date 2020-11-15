@@ -126,7 +126,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     // Prune the older block file.
     {
         LOCK(cs_main);
-        Assert(m_node.chainman)->PruneOneBlockFile(oldTip->GetBlockPos().nFile);
+        Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(oldTip->GetBlockPos().nFile);
     }
     UnlinkPrunedFiles({oldTip->GetBlockPos().nFile});
 
@@ -152,7 +152,7 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
     // Prune the remaining block file.
     {
         LOCK(cs_main);
-        Assert(m_node.chainman)->PruneOneBlockFile(newTip->GetBlockPos().nFile);
+        Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(newTip->GetBlockPos().nFile);
     }
     UnlinkPrunedFiles({newTip->GetBlockPos().nFile});
 
@@ -189,7 +189,7 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
     // Prune the older block file.
     {
         LOCK(cs_main);
-        Assert(m_node.chainman)->PruneOneBlockFile(oldTip->GetBlockPos().nFile);
+        Assert(m_node.chainman)->m_blockman.PruneOneBlockFile(oldTip->GetBlockPos().nFile);
     }
     UnlinkPrunedFiles({oldTip->GetBlockPos().nFile});
 
@@ -524,8 +524,9 @@ public:
         int changePos = -1;
         bilingual_str error;
         CCoinControl dummy;
+        FeeCalculation fee_calc_out;
         {
-            BOOST_CHECK(wallet->CreateTransaction({recipient}, tx, fee, changePos, error, dummy));
+            BOOST_CHECK(wallet->CreateTransaction({recipient}, tx, fee, changePos, error, dummy, fee_calc_out));
         }
         wallet->CommitTransaction(tx, {}, {});
         CMutableTransaction blocktx;
@@ -687,7 +688,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_descriptor_test, BasicTestingSetup)
     BOOST_CHECK_EXCEPTION(vr >> w_desc, std::ios_base::failure, malformed_descriptor);
 }
 
-//! Test CreateWalletFromFile function and its behavior handling potential race
+//! Test CWallet::Create() and its behavior handling potential race
 //! conditions if it's called the same time an incoming transaction shows up in
 //! the mempool or a new block.
 //!
@@ -705,7 +706,7 @@ BOOST_FIXTURE_TEST_CASE(wallet_descriptor_test, BasicTestingSetup)
 //! wallet rescan and notifications are immediately synced, to verify the wallet
 //! must already have a handler in place for them, and there's no gap after
 //! rescanning where new transactions in new blocks could be lost.
-BOOST_FIXTURE_TEST_CASE(CreateWalletFromFile, TestChain100Setup)
+BOOST_FIXTURE_TEST_CASE(CreateWallet, TestChain100Setup)
 {
     // Create new wallet with known key and unload it.
     auto chain = interfaces::MakeChain(m_node);

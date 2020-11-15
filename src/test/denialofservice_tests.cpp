@@ -85,10 +85,9 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     // Mock an outbound peer
     CAddress addr1(ip(0xa0b0c001), NODE_NONE);
     CNode dummyNode1(id++, ServiceFlags(NODE_NETWORK | NODE_WITNESS), 0, INVALID_SOCKET, addr1, 0, 0, CAddress(), "", ConnectionType::OUTBOUND_FULL_RELAY);
-    dummyNode1.SetSendVersion(PROTOCOL_VERSION);
+    dummyNode1.SetCommonVersion(PROTOCOL_VERSION);
 
     peerLogic->InitializeNode(&dummyNode1);
-    dummyNode1.nVersion = 1;
     dummyNode1.fSuccessfullyConnected = true;
 
     // This test requires that we have a chain with non-zero work.
@@ -130,7 +129,7 @@ BOOST_AUTO_TEST_CASE(outbound_slow_chain_eviction)
     SetMockTime(0);
 
     bool dummy;
-    peerLogic->FinalizeNode(dummyNode1.GetId(), dummy);
+    peerLogic->FinalizeNode(dummyNode1, dummy);
 }
 
 static void AddRandomOutboundPeer(std::vector<CNode *> &vNodes, PeerManager &peerLogic, CConnmanTest* connman)
@@ -138,10 +137,9 @@ static void AddRandomOutboundPeer(std::vector<CNode *> &vNodes, PeerManager &pee
     CAddress addr(ip(g_insecure_rand_ctx.randbits(32)), NODE_NONE);
     vNodes.emplace_back(new CNode(id++, ServiceFlags(NODE_NETWORK | NODE_WITNESS), 0, INVALID_SOCKET, addr, 0, 0, CAddress(), "", ConnectionType::OUTBOUND_FULL_RELAY));
     CNode &node = *vNodes.back();
-    node.SetSendVersion(PROTOCOL_VERSION);
+    node.SetCommonVersion(PROTOCOL_VERSION);
 
     peerLogic.InitializeNode(&node);
-    node.nVersion = 1;
     node.fSuccessfullyConnected = true;
 
     connman->AddNode(node);
@@ -213,7 +211,7 @@ BOOST_AUTO_TEST_CASE(stale_tip_peer_management)
 
     bool dummy;
     for (const CNode *node : vNodes) {
-        peerLogic->FinalizeNode(node->GetId(), dummy);
+        peerLogic->FinalizeNode(*node, dummy);
     }
 
     connman->ClearNodes();
@@ -229,9 +227,8 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     banman->ClearBanned();
     CAddress addr1(ip(0xa0b0c001), NODE_NONE);
     CNode dummyNode1(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr1, 0, 0, CAddress(), "", ConnectionType::INBOUND);
-    dummyNode1.SetSendVersion(PROTOCOL_VERSION);
+    dummyNode1.SetCommonVersion(PROTOCOL_VERSION);
     peerLogic->InitializeNode(&dummyNode1);
-    dummyNode1.nVersion = 1;
     dummyNode1.fSuccessfullyConnected = true;
     peerLogic->Misbehaving(dummyNode1.GetId(), DISCOURAGEMENT_THRESHOLD, /* message */ ""); // Should be discouraged
     {
@@ -243,9 +240,8 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
 
     CAddress addr2(ip(0xa0b0c002), NODE_NONE);
     CNode dummyNode2(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr2, 1, 1, CAddress(), "", ConnectionType::INBOUND);
-    dummyNode2.SetSendVersion(PROTOCOL_VERSION);
+    dummyNode2.SetCommonVersion(PROTOCOL_VERSION);
     peerLogic->InitializeNode(&dummyNode2);
-    dummyNode2.nVersion = 1;
     dummyNode2.fSuccessfullyConnected = true;
     peerLogic->Misbehaving(dummyNode2.GetId(), DISCOURAGEMENT_THRESHOLD - 1, /* message */ "");
     {
@@ -263,8 +259,8 @@ BOOST_AUTO_TEST_CASE(peer_discouragement)
     BOOST_CHECK(banman->IsDiscouraged(addr2));  // to be discouraged now
 
     bool dummy;
-    peerLogic->FinalizeNode(dummyNode1.GetId(), dummy);
-    peerLogic->FinalizeNode(dummyNode2.GetId(), dummy);
+    peerLogic->FinalizeNode(dummyNode1, dummy);
+    peerLogic->FinalizeNode(dummyNode2, dummy);
 }
 
 BOOST_AUTO_TEST_CASE(DoS_bantime)
@@ -280,9 +276,8 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
 
     CAddress addr(ip(0xa0b0c001), NODE_NONE);
     CNode dummyNode(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr, 4, 4, CAddress(), "", ConnectionType::INBOUND);
-    dummyNode.SetSendVersion(PROTOCOL_VERSION);
+    dummyNode.SetCommonVersion(PROTOCOL_VERSION);
     peerLogic->InitializeNode(&dummyNode);
-    dummyNode.nVersion = 1;
     dummyNode.fSuccessfullyConnected = true;
 
     peerLogic->Misbehaving(dummyNode.GetId(), DISCOURAGEMENT_THRESHOLD, /* message */ "");
@@ -293,7 +288,7 @@ BOOST_AUTO_TEST_CASE(DoS_bantime)
     BOOST_CHECK(banman->IsDiscouraged(addr));
 
     bool dummy;
-    peerLogic->FinalizeNode(dummyNode.GetId(), dummy);
+    peerLogic->FinalizeNode(dummyNode, dummy);
 }
 
 static CTransactionRef RandomOrphan()
